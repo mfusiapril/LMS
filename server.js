@@ -161,17 +161,17 @@ app.get('/api/payments', async (req, res) => {
 // Summary
 app.get('/api/summary', async (req, res) => {
   try {
-    const rows = await dbAll('SELECT * FROM loans');
     const now = new Date();
-    const currentMonth = now.getMonth();
+    const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
+    const rows = await dbAll(`SELECT * FROM loans WHERE strftime('%Y', returnDate) = '${currentYear}' AND strftime('%m', returnDate) = '${String(currentMonth).padStart(2, '0')}'`);
 
     const summary = rows.reduce((acc, loan) => {
       const profit = Number(((loan.totalDue || 0) - (loan.amountBorrowed || 0)).toFixed(2));
       const collected = Number(loan.paidAmount || 0);
       const outstanding = Number(((loan.totalDue || 0) - (loan.paidAmount || 0)).toFixed(2));
       const transactionDate = new Date(loan.dateOfTransaction);
-      const isCurrentMonth = transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
+      const isCurrentMonth = transactionDate.getMonth() + 1 === currentMonth && transactionDate.getFullYear() === currentYear;
 
       acc.totalLoans += 1;
       acc.totalBorrowed += Number(loan.amountBorrowed || 0);

@@ -15,36 +15,6 @@ const showMessage = (text, type = 'info') => {
 const formatCurrency = (value) => `R${Number(value).toFixed(2)}`;
 
 // summary removed from landing page; projections live on manage.html
-
-const loadLoans = async () => {
-  const response = await fetch('/api/loans');
-  const loans = await response.json();
-  loansBody.innerHTML = '';
-
-  loans.forEach((loan) => {
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${loan.firstName} ${loan.lastName}</td>
-      <td>${formatCurrency(loan.amountBorrowed)}</td>
-      <td>${formatCurrency(loan.interestAmount)}</td>
-      <td>${formatCurrency(loan.totalDue)}</td>
-      <td>${formatCurrency(loan.paidAmount)}</td>
-      <td>${formatCurrency(loan.profit)}</td>
-      <td>${new Date(loan.dateOfTransaction).toLocaleDateString()}</td>
-      <td>${new Date(loan.returnDate).toLocaleDateString()}</td>
-      <td class="${loan.isPaid ? 'status-paid' : 'status-pending'}">${loan.isPaid ? 'Paid' : 'Pending'}</td>
-      <td>
-        <div class="payment-row">
-          <input type="number" step="0.01" min="0.01" placeholder="Payment" data-loan-id="${loan.id}" />
-          <button data-pay-id="${loan.id}">Pay</button>
-        </div>
-      </td>
-    `;
-
-    loansBody.appendChild(row);
-  });
-};
-
 loanForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(loanForm);
@@ -104,5 +74,3 @@ loansTable.addEventListener('click', async (event) => {
     showMessage('Payment recorded successfully.');
   }
 });
-
-loadLoans();

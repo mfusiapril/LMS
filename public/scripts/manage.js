@@ -34,8 +34,16 @@ const loadLoans = async () => {
   const response = await fetch('/api/loans');
   const loans = await response.json();
   manageLoansBody.innerHTML = '';
+  const today = new Date();
+  const currentMonth = today.getMonth() + 1; 
+  const currentYear = today.getFullYear();
 
-  loans.forEach((loan) => {
+  const filteredLoans = loans.filter(x => {
+    const itemDate = new Date(x.returnDate);
+    return (itemDate.getMonth()+ 1) === currentMonth && itemDate.getFullYear() === currentYear;
+  });
+
+  filteredLoans.forEach((loan) => {
     const outstanding = Number((loan.totalDue - loan.paidAmount).toFixed(2));
     const row = document.createElement('tr');
     row.innerHTML = `
@@ -62,25 +70,6 @@ const loadLoans = async () => {
   });
 };
 
-const loadPayments = async () => {
-  const response = await fetch('/api/payments');
-  const payments = await response.json();
-  paymentsBody.innerHTML = '';
-
-  payments.forEach((payment) => {
-    const outstanding = Number((payment.totalDue - payment.paidAmount).toFixed(2));
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${payment.firstName} ${payment.lastName}</td>
-      <td>${formatCurrency(payment.amount)}</td>
-      <td>${new Date(payment.date).toLocaleDateString()}</td>
-      <td>${formatCurrency(payment.totalDue)}</td>
-      <td>${formatCurrency(outstanding)}</td>
-    `;
-    paymentsBody.appendChild(row);
-  });
-};
-
 const handlePayment = async (loanId, amount, input) => {
   const response = await fetch(`/api/loans/${loanId}/payments`, {
     method: 'POST',
@@ -100,7 +89,7 @@ const handlePayment = async (loanId, amount, input) => {
 };
 
 const refreshData = async () => {
-  await Promise.all([loadSummary(), loadLoans(), loadPayments()]);
+  await Promise.all([loadSummary(), loadLoans()]);
 };
 
 const manageLoansTable = document.getElementById('manage-loans-table');
@@ -116,6 +105,17 @@ if (manageLoansTable) {
       }
       await handlePayment(loanId, amount, input);
     }
+  });
+}
+
+const filterBtn = document.getElementById('filterBtn');
+const filterDate = document.getElementById('filterDate');
+
+if (filterBtn) {
+  filterBtn.addEventListener('click', () => {
+    const filterDate = document.getElementById('filterDate');
+    filterDate.classList.toggle('hidden');
+    if (!filterDate.classList.contains('hidden')) filterDate.focus();
   });
 }
 
