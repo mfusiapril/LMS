@@ -10,6 +10,7 @@ A small loan tracking app to capture borrower details, calculate 35% interest, s
 - Track return date
 - Manage payments against loans
 - Mark loans as paid when the collected amount meets or exceeds the total due
+- Filter Transaction based on desired return dates(pay dates 15, 20, 25, 30/31)
 
 ## Setup
 
