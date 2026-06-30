@@ -38,11 +38,11 @@
             <span>🏠</span>
             <span>Dashboard</span>
           </a>
-          <a href="manage.html" class="flex items-center gap-3 rounded-3xl px-4 py-4 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white">
+          <a href="activeloans.html" class="flex items-center gap-3 rounded-3xl px-4 py-4 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white">
             <span>📋</span>
             <span>Active Loans</span>
           </a>
-          <a href="manage.html" class="flex items-center gap-3 rounded-3xl px-4 py-4 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white">
+          <a href="paidLoans.html" class="flex items-center gap-3 rounded-3xl px-4 py-4 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white">
             <span>💵</span>
             <span>Payments</span>
           </a>
@@ -68,33 +68,7 @@
           </div>
         </div>
 
-        <div class="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <section class="rounded-[32px] bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-            <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p class="text-sm uppercase tracking-[0.35em] text-slate-500">Active Loans</p>
-                <h2 class="mt-3 text-2xl font-semibold text-slate-950">Loan portfolio</h2>
-              </div>
-              <button class="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">View History</button>
-            </div>
-            <div id="manage-message-box" class="mt-6 min-h-[28px] text-sm font-semibold text-emerald-600"></div>
-            <div class="mt-4 overflow-x-auto">
-              <table id="manage-loans-table" class="min-w-full text-left text-sm text-slate-600">
-                <thead class="border-b border-slate-200 text-slate-500">
-                  <tr>
-                    <th class="px-4 py-4">Client</th>
-                    <th class="px-4 py-4">Borrowed</th>
-                    <th class="px-4 py-4">Interest (35%)</th>
-                    <th class="px-4 py-4">Total Due</th>
-                    <th class="px-4 py-4">Status</th>
-                    <th class="px-4 py-4">Action</th>
-                  </tr>
-                </thead>
-                <tbody id="manage-loans-body" class="divide-y divide-slate-200"></tbody>
-              </table>
-            </div>
-          </section>
-
+        <div class="mt-6 gap-12 xl:grid-cols-[1.2fr_0.8fr]">
           <section class="rounded-[32px] bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
             <div class="mb-6">
               <p class="text-sm uppercase tracking-[0.35em] text-slate-500">Portfolio Metrics</p>
@@ -104,7 +78,6 @@
               <div class="rounded-3xl bg-slate-950 px-5 py-6 text-white shadow-lg shadow-slate-950/10">
                 <p class="text-xs uppercase tracking-[0.35em] text-slate-400">Total return</p>
                 <p class="mt-4 text-3xl font-semibold"><span id="manage-total-return">0.00</span></p>
-                <p class="mt-3 text-sm text-slate-300">+12.5% from last month</p>
               </div>
               <div class="rounded-3xl bg-slate-50 px-5 py-6 shadow-sm shadow-slate-950/5">
                 <p class="text-xs uppercase tracking-[0.35em] text-slate-500">Collected so far</p>
@@ -122,16 +95,16 @@
           </section>
         </div>
 
-        <section class="mt-6 rounded-[32px] bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+        <!-- <section class="mt-6 rounded-[32px] bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p class="text-sm uppercase tracking-[0.35em] text-slate-500">Recent activity</p>
               <h2 class="mt-3 text-2xl font-semibold text-slate-950">Recent payments</h2>
             </div>
             <button class="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Filter</button>
-          </div>
+          </div> -->
 
-          <div class="mt-6 overflow-x-auto">
+          <!-- <div class="mt-6 overflow-x-auto">
             <table class="min-w-full text-left text-sm text-slate-600">
               <thead class="border-b border-slate-200 text-slate-500">
                 <tr>
@@ -144,11 +117,11 @@
               </thead>
               <tbody id="payments-body" class="divide-y divide-slate-200"></tbody>
             </table>
-          </div>
-        </section>
+          </div> 
+        </section>-->
       </main>
     </div>
   </div>
-  <script src="manage.js"></script>
+  <script src="scripts/manage.js"></script>
 </body>
 </html>
