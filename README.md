@@ -16,14 +16,8 @@ A small loan tracking app to capture borrower details, calculate 35% interest, s
 
 1. Open a terminal in this folder.
 2. Run `npm install`.
-3. Set these Azure SQL environment variables (or configure connection string):
-   - `AZURE_SQL_SERVER` (e.g. yourserver.database.windows.net)
-   - `AZURE_SQL_DATABASE` (e.g. LoanSharkDB)
-   - `AZURE_SQL_USER`
-   - `AZURE_SQL_PASSWORD`
-   - Optional: `AZURE_SQL_PORT` (default: 1433)
-4. Start the app with `npm start`.
-5. Open `http://localhost:4000` in your browser.
+3. Start the app with `npm start`.
+4. Open `http://localhost:4000` in your browser.
 
 ## Notes
 
