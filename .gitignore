@@ -2,3 +2,4 @@ node_modules/
 loans.db
 npm-debug.log*
 .DS_Store
+.env

@@ -1,52 +1,91 @@
-
 const express = require('express');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
-const { promisify } = require('util');
+require('dotenv').config({ quiet: true });
+const sql = require('mssql');
 
 const app = express();
-const dbPath = path.join(__dirname, 'loans.db');
 
-let sqliteDb;
-let dbAll, dbGet, dbRun;
+const requiredEnv = [
+  'AZURE_SQL_SERVER',
+  'AZURE_SQL_DATABASE',
+  'AZURE_SQL_USER',
+  'AZURE_SQL_PASSWORD' 
+];
+
+const dbConfig = {
+  server: process.env.AZURE_SQL_SERVER,
+  database: process.env.AZURE_SQL_DATABASE,
+  user: process.env.AZURE_SQL_USER,
+  password: process.env.AZURE_SQL_PASSWORD,
+  port: Number(process.env.AZURE_SQL_PORT || 1433),
+  options: {
+    encrypt: process.env.AZURE_SQL_ENCRYPT !== 'false',
+    trustServerCertificate: process.env.AZURE_SQL_TRUST_CERT === 'true'
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000
+  }
+};
+
+let pool;
+
+const ensureEnv = () => {
+  const missing = requiredEnv.filter(name => !process.env[name]);
+  if (missing.length) {
+    throw new Error(`Missing Azure SQL environment variables: ${missing.join(', ')}`);
+  }
+};
 
 const initDb = async () => {
-  sqliteDb = new sqlite3.Database(dbPath);
-  dbAll = promisify(sqliteDb.all.bind(sqliteDb));
-  dbGet = promisify(sqliteDb.get.bind(sqliteDb));
-  dbRun = (sqlStmt, params = []) => new Promise((resolve, reject) => {
-    sqliteDb.run(sqlStmt, params, function (err) {
-      if (err) return reject(err);
-      resolve(this);
-    });
-  });
+  ensureEnv();
+  pool = await sql.connect(dbConfig);
 
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS loans (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      firstName TEXT NOT NULL,
-      lastName TEXT NOT NULL,
-      amountBorrowed REAL NOT NULL,
-      interestAmount REAL NOT NULL,
-      totalDue REAL NOT NULL,
-      dateOfTransaction TEXT NOT NULL,
-      returnDate TEXT NOT NULL,
-      paidAmount REAL NOT NULL DEFAULT 0,
-      isPaid INTEGER NOT NULL DEFAULT 0
-    )
+  await pool.request().batch(`
+    IF OBJECT_ID('dbo.loans', 'U') IS NULL
+    BEGIN
+      CREATE TABLE dbo.loans (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        firstName NVARCHAR(100) NOT NULL,
+        lastName NVARCHAR(100) NOT NULL,
+        amountBorrowed DECIMAL(18, 2) NOT NULL,
+        interestAmount DECIMAL(18, 2) NOT NULL,
+        totalDue DECIMAL(18, 2) NOT NULL,
+        dateOfTransaction DATETIME2 NOT NULL,
+        returnDate DATE NOT NULL,
+        paidAmount DECIMAL(18, 2) NOT NULL CONSTRAINT DF_loans_paidAmount DEFAULT 0,
+        isPaid BIT NOT NULL CONSTRAINT DF_loans_isPaid DEFAULT 0
+      );
+    END;
+
+    IF OBJECT_ID('dbo.payments', 'U') IS NULL
+    BEGIN
+      CREATE TABLE dbo.payments (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        loanId INT NOT NULL,
+        amount DECIMAL(18, 2) NOT NULL,
+        date DATETIME2 NOT NULL,
+        CONSTRAINT FK_payments_loans FOREIGN KEY (loanId) REFERENCES dbo.loans(id)
+      );
+    END;
   `);
 
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS payments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      loanId INTEGER NOT NULL,
-      amount REAL NOT NULL,
-      date TEXT NOT NULL,
-      FOREIGN KEY (loanId) REFERENCES loans(id)
-    )
-  `);
+  console.log('Connected to Azure SQL database', dbConfig.database);
+};
 
-  console.log('Initialized local SQLite DB at', dbPath);
+const request = () => pool.request();
+
+const formatDateOnly = (value) => {
+  if (!value) return value;
+  if (typeof value === 'string') return value.slice(0, 10);
+  return value.toISOString().slice(0, 10);
+};
+
+const formatDateTime = (value) => {
+  if (!value) return value;
+  if (typeof value === 'string') return value;
+  return value.toISOString();
 };
 
 const formatLoan = (loan) => ({
@@ -56,11 +95,11 @@ const formatLoan = (loan) => ({
   amountBorrowed: Number(loan.amountBorrowed || 0),
   interestAmount: Number(loan.interestAmount || 0),
   totalDue: Number(loan.totalDue || 0),
-  dateOfTransaction: loan.dateOfTransaction,
-  returnDate: loan.returnDate,
+  dateOfTransaction: formatDateTime(loan.dateOfTransaction),
+  returnDate: formatDateOnly(loan.returnDate),
   paidAmount: Number(loan.paidAmount || 0),
   isPaid: Boolean(loan.isPaid),
-  profit: Number(((loan.totalDue || 0) - (loan.amountBorrowed || 0)).toFixed(2))
+  profit: Number(((Number(loan.totalDue) || 0) - (Number(loan.amountBorrowed) || 0)).toFixed(2))
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -69,8 +108,8 @@ app.use(express.json());
 // List loans
 app.get('/api/loans', async (req, res) => {
   try {
-    const rows = await dbAll('SELECT * FROM loans ORDER BY dateOfTransaction DESC');
-    res.json(rows.map(formatLoan));
+    const result = await request().query('SELECT * FROM dbo.loans ORDER BY dateOfTransaction DESC');
+    res.json(result.recordset.map(formatLoan));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -81,22 +120,50 @@ app.post('/api/loans', async (req, res) => {
   try {
     const { firstName, lastName, amountBorrowed, returnDate } = req.body;
     const amount = parseFloat(amountBorrowed);
-    if (!firstName || !lastName || !returnDate || isNaN(amount) || amount <= 0) {
+    const parsedReturnDate = returnDate ? new Date(`${returnDate}T00:00:00`) : null;
+    if (!firstName || !lastName || !parsedReturnDate || Number.isNaN(parsedReturnDate.getTime()) || isNaN(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Invalid loan data provided.' });
     }
 
     const interestAmount = Number((amount * 0.35).toFixed(2));
     const totalDue = Number((amount + interestAmount).toFixed(2));
-    const dateOfTransaction = new Date().toISOString();
+    const dateOfTransaction = new Date();
 
-    const result = await dbRun(
-      'INSERT INTO loans (firstName, lastName, amountBorrowed, interestAmount, totalDue, dateOfTransaction, returnDate, paidAmount, isPaid) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)',
-      [firstName, lastName, amount, interestAmount, totalDue, dateOfTransaction, returnDate]
-    );
+    const result = await request()
+      .input('firstName', sql.NVarChar(100), firstName)
+      .input('lastName', sql.NVarChar(100), lastName)
+      .input('amountBorrowed', sql.Decimal(18, 2), amount)
+      .input('interestAmount', sql.Decimal(18, 2), interestAmount)
+      .input('totalDue', sql.Decimal(18, 2), totalDue)
+      .input('dateOfTransaction', sql.DateTime2, dateOfTransaction)
+      .input('returnDate', sql.Date, parsedReturnDate)
+      .query(`
+        INSERT INTO dbo.loans (
+          firstName,
+          lastName,
+          amountBorrowed,
+          interestAmount,
+          totalDue,
+          dateOfTransaction,
+          returnDate,
+          paidAmount,
+          isPaid
+        )
+        OUTPUT INSERTED.*
+        VALUES (
+          @firstName,
+          @lastName,
+          @amountBorrowed,
+          @interestAmount,
+          @totalDue,
+          @dateOfTransaction,
+          @returnDate,
+          0,
+          0
+        )
+      `);
 
-    const id = result.lastID;
-    const loan = await dbGet('SELECT * FROM loans WHERE id = ?', [id]);
-    res.json(formatLoan(loan));
+    res.json(formatLoan(result.recordset[0]));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -104,25 +171,66 @@ app.post('/api/loans', async (req, res) => {
 
 // Add payment to loan
 app.post('/api/loans/:id/payments', async (req, res) => {
+  const transaction = new sql.Transaction(pool);
+  let transactionStarted = false;
+
   try {
-    const loanId = req.params.id;
+    const loanId = Number(req.params.id);
     const amount = parseFloat(req.body.amount);
     if (!loanId || isNaN(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Invalid payment data.' });
     }
 
-    const loan = await dbGet('SELECT * FROM loans WHERE id = ?', [loanId]);
-    if (!loan) return res.status(404).json({ error: 'Loan not found.' });
+    await transaction.begin();
+    transactionStarted = true;
 
-    const date = new Date().toISOString();
-    const paymentResult = await dbRun('INSERT INTO payments (loanId, amount, date) VALUES (?, ?, ?)', [loanId, amount, date]);
+    const loanResult = await new sql.Request(transaction)
+      .input('loanId', sql.Int, loanId)
+      .query('SELECT * FROM dbo.loans WITH (UPDLOCK, ROWLOCK) WHERE id = @loanId');
+
+    const loan = loanResult.recordset[0];
+    if (!loan) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Loan not found.' });
+    }
+
+    const date = new Date();
+    const paymentResult = await new sql.Request(transaction)
+      .input('loanId', sql.Int, loanId)
+      .input('amount', sql.Decimal(18, 2), amount)
+      .input('date', sql.DateTime2, date)
+      .query(`
+        INSERT INTO dbo.payments (loanId, amount, date)
+        OUTPUT INSERTED.id
+        VALUES (@loanId, @amount, @date)
+      `);
 
     const paidAmount = Number((Number(loan.paidAmount || 0) + amount).toFixed(2));
-    const isPaid = paidAmount >= Number(loan.totalDue || 0) ? 1 : 0;
-    await dbRun('UPDATE loans SET paidAmount = ?, isPaid = ? WHERE id = ?', [paidAmount, isPaid, loanId]);
+    const isPaid = paidAmount >= Number(loan.totalDue || 0);
 
-    res.json({ loanId, paidAmount, isPaid: Boolean(isPaid), paymentId: paymentResult.lastID });
+    await new sql.Request(transaction)
+      .input('paidAmount', sql.Decimal(18, 2), paidAmount)
+      .input('isPaid', sql.Bit, isPaid)
+      .input('loanId', sql.Int, loanId)
+      .query('UPDATE dbo.loans SET paidAmount = @paidAmount, isPaid = @isPaid WHERE id = @loanId');
+
+    await transaction.commit();
+    transactionStarted = false;
+
+    res.json({
+      loanId,
+      paidAmount,
+      isPaid,
+      paymentId: paymentResult.recordset[0].id
+    });
   } catch (err) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackErr) {
+        console.error('Failed to roll back payment transaction:', rollbackErr);
+      }
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -130,10 +238,18 @@ app.post('/api/loans/:id/payments', async (req, res) => {
 // Get payments for a loan
 app.get('/api/loans/:id/payments', async (req, res) => {
   try {
-    const loanId = req.params.id;
+    const loanId = Number(req.params.id);
     if (!loanId) return res.status(400).json({ error: 'Invalid loan ID.' });
-    const rows = await dbAll('SELECT * FROM payments WHERE loanId = ? ORDER BY date DESC', [loanId]);
-    res.json(rows.map(p => ({ ...p, amount: Number(p.amount) })));
+
+    const result = await request()
+      .input('loanId', sql.Int, loanId)
+      .query('SELECT * FROM dbo.payments WHERE loanId = @loanId ORDER BY date DESC');
+
+    res.json(result.recordset.map(payment => ({
+      ...payment,
+      amount: Number(payment.amount),
+      date: formatDateTime(payment.date)
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -142,12 +258,26 @@ app.get('/api/loans/:id/payments', async (req, res) => {
 // All payments (joined with loans)
 app.get('/api/payments', async (req, res) => {
   try {
-    const rows = await dbAll('SELECT p.id, p.loanId, p.amount, p.date, l.firstName, l.lastName, l.totalDue, l.paidAmount FROM payments p JOIN loans l ON p.loanId = l.id ORDER BY p.date DESC');
-    res.json(rows.map(payment => ({
+    const result = await request().query(`
+      SELECT
+        p.id,
+        p.loanId,
+        p.amount,
+        p.date,
+        l.firstName,
+        l.lastName,
+        l.totalDue,
+        l.paidAmount
+      FROM dbo.payments p
+      JOIN dbo.loans l ON p.loanId = l.id
+      ORDER BY p.date DESC
+    `);
+
+    res.json(result.recordset.map(payment => ({
       id: payment.id,
       loanId: payment.loanId,
       amount: Number(payment.amount),
-      date: payment.date,
+      date: formatDateTime(payment.date),
       firstName: payment.firstName,
       lastName: payment.lastName,
       totalDue: Number(payment.totalDue),
@@ -164,12 +294,21 @@ app.get('/api/summary', async (req, res) => {
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
-    const rows = await dbAll(`SELECT * FROM loans WHERE strftime('%Y', returnDate) = '${currentYear}' AND strftime('%m', returnDate) = '${String(currentMonth).padStart(2, '0')}'`);
 
-    const summary = rows.reduce((acc, loan) => {
-      const profit = Number(((loan.totalDue || 0) - (loan.amountBorrowed || 0)).toFixed(2));
+    const result = await request()
+      .input('currentYear', sql.Int, currentYear)
+      .input('currentMonth', sql.Int, currentMonth)
+      .query(`
+        SELECT *
+        FROM dbo.loans
+        WHERE YEAR(returnDate) = @currentYear
+          AND MONTH(returnDate) = @currentMonth
+      `);
+
+    const summary = result.recordset.reduce((acc, loan) => {
+      const profit = Number(((Number(loan.totalDue) || 0) - (Number(loan.amountBorrowed) || 0)).toFixed(2));
       const collected = Number(loan.paidAmount || 0);
-      const outstanding = Number(((loan.totalDue || 0) - (loan.paidAmount || 0)).toFixed(2));
+      const outstanding = Number(((Number(loan.totalDue) || 0) - (Number(loan.paidAmount) || 0)).toFixed(2));
       const transactionDate = new Date(loan.dateOfTransaction);
       const isCurrentMonth = transactionDate.getMonth() + 1 === currentMonth && transactionDate.getFullYear() === currentYear;
 

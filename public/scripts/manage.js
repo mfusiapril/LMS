@@ -10,6 +10,7 @@ const manageSummaryFields = {
 };
 
 const showMessage = (text, type = 'info') => {
+  if (!messageBox) return;
   messageBox.textContent = text;
   messageBox.className = type === 'error' ? 'error' : 'success';
   setTimeout(() => {
@@ -19,32 +20,31 @@ const showMessage = (text, type = 'info') => {
 };
 
 const formatCurrency = (value) => `R${Number(value).toFixed(2)}`;
+let loansCache = [];
 
-const loadSummary = async () => {
-  const response = await fetch('/api/summary');
-  const summary = await response.json();
-
-  manageSummaryFields.totalReturn.textContent = formatCurrency(summary.totalProjectedReturn);
-  manageSummaryFields.totalCollected.textContent = formatCurrency(summary.totalCollected);
-  manageSummaryFields.totalOutstanding.textContent = formatCurrency(summary.totalOutstanding);
-  manageSummaryFields.monthProfit.textContent = formatCurrency(summary.monthProfit);
+const normalizeDate = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
 };
 
-const loadLoans = async () => {
-  const response = await fetch('/api/loans');
-  const loans = await response.json();
-  manageLoansBody.innerHTML = '';
-  const today = new Date();
-  const currentMonth = today.getMonth() + 1; 
-  const currentYear = today.getFullYear();
+const getLoanFilter = () => document.getElementById('filterDate')?.value.trim() || '';
 
-  const filteredLoans = loans.filter(x => {
-    const itemDate = new Date(x.returnDate);
-    return (itemDate.getMonth()+ 1) === currentMonth && itemDate.getFullYear() === currentYear;
-  });
+const matchesLoanFilter = (loan, filterValue) => {
+  if (!filterValue) return true;
+  return normalizeDate(loan.returnDate).startsWith(filterValue);
+};
+
+const renderLoans = () => {
+  if (!manageLoansBody) return;
+
+  const filterValue = getLoanFilter();
+  const filteredLoans = loansCache.filter(loan => matchesLoanFilter(loan, filterValue));
+
+  manageLoansBody.innerHTML = '';
 
   filteredLoans.forEach((loan) => {
-    const outstanding = Number((loan.totalDue - loan.paidAmount).toFixed(2));
     const row = document.createElement('tr');
     row.innerHTML = `
       <td class="px-4 py-4">
@@ -68,6 +68,31 @@ const loadLoans = async () => {
     `;
     manageLoansBody.appendChild(row);
   });
+
+  if (!filteredLoans.length) {
+    const row = document.createElement('tr');
+    row.innerHTML = '<td colspan="6" class="px-4 py-6 text-center text-sm text-slate-500">No transactions match this filter.</td>';
+    manageLoansBody.appendChild(row);
+  }
+};
+
+const loadSummary = async () => {
+  const summaryElements = Object.values(manageSummaryFields);
+  if (summaryElements.some(element => !element)) return;
+
+  const response = await fetch('/api/summary');
+  const summary = await response.json();
+
+  manageSummaryFields.totalReturn.textContent = formatCurrency(summary.totalProjectedReturn);
+  manageSummaryFields.totalCollected.textContent = formatCurrency(summary.totalCollected);
+  manageSummaryFields.totalOutstanding.textContent = formatCurrency(summary.totalOutstanding);
+  manageSummaryFields.monthProfit.textContent = formatCurrency(summary.monthProfit);
+};
+
+const loadLoans = async () => {
+  const response = await fetch('/api/loans');
+  loansCache = await response.json();
+  renderLoans();
 };
 
 const handlePayment = async (loanId, amount, input) => {
@@ -117,6 +142,10 @@ if (filterBtn) {
     filterDate.classList.toggle('hidden');
     if (!filterDate.classList.contains('hidden')) filterDate.focus();
   });
+}
+
+if (filterDate) {
+  filterDate.addEventListener('input', renderLoans);
 }
 
 refreshData();

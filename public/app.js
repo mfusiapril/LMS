@@ -43,34 +43,35 @@ loanForm.addEventListener('submit', async (event) => {
   }
 
   loanForm.reset();
-  await loadLoans();
   showMessage('Loan recorded successfully.');
 });
 
-loansTable.addEventListener('click', async (event) => {
-  if (event.target.matches('button[data-pay-id]')) {
-    const loanId = event.target.dataset.payId;
-    const input = event.target.closest('.payment-row').querySelector('input');
-    const amount = parseFloat(input.value);
-    if (!amount || amount <= 0) {
-      showMessage('Enter a valid payment amount.', 'error');
-      return;
+if (loansTable) {
+  loansTable.addEventListener('click', async (event) => {
+    if (event.target.matches('button[data-pay-id]')) {
+      const loanId = event.target.dataset.payId;
+      const input = event.target.closest('.payment-row').querySelector('input');
+      const amount = parseFloat(input.value);
+      if (!amount || amount <= 0) {
+        showMessage('Enter a valid payment amount.', 'error');
+        return;
+      }
+
+      const response = await fetch(`/api/loans/${loanId}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        showMessage(error.error || 'Payment failed.', 'error');
+        return;
+      }
+
+      input.value = '';
+      if (typeof loadLoans === 'function') await loadLoans();
+      showMessage('Payment recorded successfully.');
     }
-
-    const response = await fetch(`/api/loans/${loanId}/payments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount })
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      showMessage(error.error || 'Payment failed.', 'error');
-      return;
-    }
-
-    input.value = '';
-    await loadLoans();
-    showMessage('Payment recorded successfully.');
-  }
-});
+  });
+}

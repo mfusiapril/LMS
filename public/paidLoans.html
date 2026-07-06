@@ -72,7 +72,7 @@
                             <h2 class="mt-3 text-2xl font-semibold text-slate-950">Transaction Paid</h2>
                         </div>
                         <div class="flex items-center gap-3">
-                            <input type="date" id="filterDate"
+                            <input type="text" id="filterDate" inputmode="numeric" placeholder="YYYY, YYYY-MM, YYYY-MM-DD"
                                 class="hidden rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none" />
                             <button id="filterBtn"
                                 class="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">Filter</button>
@@ -90,7 +90,9 @@
                         <th class="px-4 py-4">Outstanding</th>
                       </tr>
                     </thead>
-                    <tbody id="payments-body" class="divide-y divide-slate-200"></tbody>
+                    <tbody id="payments-body"
+                        class="divide-y divide-slate-200 [&>tr:nth-child(odd)]:bg-gray-300 [&>tr:nth-child(even)]:bg-gray-100">
+                    </tbody>
                   </table>
             </div>
         </div>
