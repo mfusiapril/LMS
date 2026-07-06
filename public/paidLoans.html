@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -22,8 +23,13 @@
 <body class="bg-slate-50 text-slate-900">
     <div class="min-h-screen bg-slate-100">
         <div class="grid min-h-screen grid-cols-1 lg:grid-cols-[280px_1fr]">
-            <aside
-                class="sidebar hidden overflow-y-auto border-r border-slate-200 bg-slate-950 px-6 py-8 text-slate-100 lg:block">
+            <button id="menuToggle" class="lg:hidden flex items-center justify-center rounded-xl bg-slate-800 p-3 text-white">
+                <span id="menuIcon">☰</span>
+              </button>
+        
+              <div id="sidebarBackdrop" class="hidden fixed inset-0 z-40 bg-slate-950/50 lg:hidden"></div>          
+        
+            <aside id="sidebar" class="sidebar fixed inset-y-0 left-0 z-50 w-72 -translate-x-full overflow-y-auto border-r border-slate-200 bg-slate-950 px-6 py-8 text-slate-100 transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:w-auto lg:translate-x-0 lg:block">
                 <div class="mb-10">
                     <div
                         class="mb-4 inline-flex items-center gap-3 rounded-3xl bg-slate-900 px-4 py-3 text-sm font-semibold shadow-lg shadow-slate-950/20">
@@ -38,22 +44,19 @@
                 </div>
 
                 <nav class="space-y-1">
-                    <a href="manage.html"
-                        class="flex items-center gap-3 rounded-3xl bg-slate-800 px-4 py-4 text-sm font-semibold text-white shadow-sm shadow-slate-950/10">
-                        <span>🏠</span>
-                        <span>Dashboard</span>
+                    <a href="manage.html" class="flex items-center gap-3 rounded-3xl bg-slate-800 px-4 py-4 text-sm font-semibold text-white shadow-sm shadow-slate-950/10">
+                      <span>🏠</span>
+                      <span>Dashboard</span>
                     </a>
-                    <a href="activeloans.html"
-                        class="flex items-center gap-3 rounded-3xl px-4 py-4 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white">
-                        <span>📋</span>
-                        <span>Active Loans</span>
+                    <a href="activeloans.html" class="flex items-center gap-3 rounded-3xl px-4 py-4 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white">
+                      <span>📋</span>
+                      <span>Active Loans</span>
                     </a>
-                    <a href="manage.html"
-                        class="flex items-center gap-3 rounded-3xl px-4 py-4 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white">
-                        <span>💵</span>
-                        <span>Payments</span>
+                    <a href="paidLoans.html" class="flex items-center gap-3 rounded-3xl px-4 py-4 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white">
+                      <span>💵</span>
+                      <span>Payments</span>
                     </a>
-                </nav>
+                  </nav>
 
                 <div class="mt-12 rounded-3xl bg-white p-5 text-slate-900 shadow-xl shadow-slate-950/10">
                     <p class="text-sm font-semibold text-slate-600">Export Data</p>
@@ -82,21 +85,20 @@
 
                 <table class="min-w-full text-left text-sm text-slate-600">
                     <thead class="border-b border-slate-200 text-slate-500">
-                      <tr>
-                        <th class="px-4 py-4">Client</th>
-                        <th class="px-4 py-4">Payment</th>
-                        <th class="px-4 py-4">Transaction Date</th>
-                        <th class="px-4 py-4">Loan Due</th>
-                        <th class="px-4 py-4">Outstanding</th>
-                      </tr>
+                        <tr>
+                            <th class="px-4 py-4">Client</th>
+                            <th class="px-4 py-4">Payment</th>
+                            <th class="px-4 py-4">Transaction Date</th>
+                            <th class="px-4 py-4">Loan Due</th>
+                            <th class="px-4 py-4">Outstanding</th>
+                        </tr>
                     </thead>
-                    <tbody id="payments-body"
-                        class="divide-y divide-slate-200 [&>tr:nth-child(odd)]:bg-gray-300 [&>tr:nth-child(even)]:bg-gray-100">
-                    </tbody>
-                  </table>
+                    <tbody id="payments-body" class="divide-y divide-slate-200"></tbody>
+                </table>
             </div>
-        </div>
+        </div> 
     </div>
     <script src="scripts/paidloans.js"></script>
+    <script src="scripts/genericscript.js"></script>
 </body>
 </html> 
